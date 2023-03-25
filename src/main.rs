@@ -8,15 +8,23 @@ use crossterm::{
 use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::Constraint,
-    style::{Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, Table, TableState},
+    layout::{Constraint, Layout},
+    style::{Color, Modifier, Style},
+    text::{Span, Spans, Text},
+    widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState},
     Frame, Terminal,
 };
+
+enum SortByNameOptions {
+    ASC,
+    DESC,
+    NONE,
+}
 
 struct App {
     state: TableState,
     processes: Vec<(Pid, String)>,
+    sort_by_name_option: SortByNameOptions,
 }
 
 impl App {
@@ -31,7 +39,27 @@ impl App {
         Self {
             processes: processes,
             state: TableState::default(),
+            sort_by_name_option: SortByNameOptions::NONE,
         }
+    }
+
+    pub fn switch_sort(&mut self) {
+        // if sort option is NONE then set to ASC otherwise toggle ASC and DESC
+        self.sort_by_name_option = match self.sort_by_name_option {
+            SortByNameOptions::ASC => SortByNameOptions::DESC,
+            SortByNameOptions::DESC => SortByNameOptions::ASC,
+            SortByNameOptions::NONE => SortByNameOptions::ASC,
+        };
+
+        match self.sort_by_name_option {
+            SortByNameOptions::ASC => {
+                self.processes.sort_by(|a, b| a.1.cmp(&b.1));
+            }
+            SortByNameOptions::DESC => {
+                self.processes.sort_by(|a, b| b.1.cmp(&a.1));
+            }
+            _ => {}
+        };
     }
 
     pub fn next(&mut self) {
@@ -116,10 +144,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 
         if let Event::Key(key) = event::read()? {
             match key.code {
-                KeyCode::Char('q') => return Ok(()),
                 KeyCode::Down => app.next(),
                 KeyCode::Up => app.prev(),
                 KeyCode::Enter => app.kill(),
+                KeyCode::Char('q') => return Ok(()),
+                KeyCode::Char('n') => app.switch_sort(),
+                KeyCode::Char('j') => app.next(),
+                KeyCode::Char('k') => app.prev(),
                 _ => {}
             }
         }
@@ -129,6 +160,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let size = f.size();
 
+    let main_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Process Killer By @himanshurajora, The Vedik Dev")
+        .title_alignment(tui::layout::Alignment::Right);
+
+    let instruction_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Instructions")
+        .style(Style::default().fg(Color::Green));
+
     let rows = app.processes.iter().enumerate().map(|(i, f)| {
         let index = Cell::from(i.to_string());
         let pid = Cell::from(f.0.to_string());
@@ -137,7 +178,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         Row::new([index, pid, name])
     });
 
-    let selected_style = Style::default().add_modifier(Modifier::REVERSED);
+    let selected_style = Style::default().bg(Color::Red);
 
     let table = Table::new(rows)
         .header(Row::new([
@@ -145,7 +186,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             Cell::from("PID"),
             Cell::from("Name"),
         ]))
-        .block(Block::default().borders(Borders::ALL).title("Table"))
+        .block(main_block)
         .highlight_style(selected_style)
         .highlight_symbol(">> ")
         .widths(&[
@@ -154,6 +195,26 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             Constraint::Min(10),
         ]);
 
-    f.render_stateful_widget(table, size, &mut app.state);
-    // f.render_widget(block, size);
+    let chunks = Layout::default()
+        .direction(tui::layout::Direction::Vertical)
+        .constraints([Constraint::Percentage(90), Constraint::Percentage(10)])
+        .split(size);
+
+    let instructions = vec![
+        Span::from("1. Press"),
+        Span::styled(" Enter ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::from("to kill a process, 2. Press"),
+        Span::styled(" N ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::from("to toggle sort by Name, 3. Press"),
+        Span::styled(" Q ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::from("to quit"),
+        Span::from(", Press J and K or Up and Down array for navigating through the list"),
+    ];
+
+    let sort_name_text = Text::from(Spans::from(instructions));
+    let paragraph = Paragraph::new(sort_name_text).block(instruction_block);
+
+    f.render_stateful_widget(table, chunks[0], &mut app.state);
+    // f.render_widget(instruction_block, chunks[1]);
+    f.render_widget(paragraph, chunks[1]);
 }
