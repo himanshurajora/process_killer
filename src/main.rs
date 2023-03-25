@@ -184,7 +184,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 InputMode::NORMAL => match key.code {
                     KeyCode::Down => app.next(),
                     KeyCode::Up => app.prev(),
-                    KeyCode::Enter => app.kill(),
+                    KeyCode::Char('d') => app.kill(),
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('n') => app.switch_sort(),
                     KeyCode::Char('j') => app.next(),
@@ -198,7 +198,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     KeyCode::Backspace => {
                         app.search_input.pop();
                     }
-                    KeyCode::Enter => app.search(),
+                    KeyCode::Enter => {
+                        app.search();
+                        app.exit_input_mode();
+                    }
                     KeyCode::Char(c) => app.search_input.push(c),
                     _ => {}
                 },
@@ -259,7 +262,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .split(size);
 
     let instructions = vec![
-        Span::from("'Enter to Kill', 'N for toggle sorting', 'Q to quit', 'I to input mode', 'Esc to exit input mode', 'Enter to search'"),
+        Span::from("'D to Destory/Kill', 'N for toggle sorting', J/K or Up/Down to navigate, 'R to refetch','Q to quit', 'I to input mode', 'Esc to exit input mode', 'Enter to search'"),
     ];
 
     let sort_name_text = Text::from(Spans::from(instructions));
