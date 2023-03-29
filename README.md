@@ -1,6 +1,6 @@
 # Process Killer
 
-A simple TUI writter in rust to kill processes.
+A simple TUI tool in rust to kill processes.
 
 TODO:
 - Really need a loader to notify
