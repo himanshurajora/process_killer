@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 description = "TUI to kill active process, without the need of finding the process id manually and then using the kill command"
 readme = "README.md"
-keywords = ["cli", "process kill", "tui", "tui process killer"]
+keywords = ["cli", "processkill", "tui", "killer"]
 categories = ["text-base-user-interface", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
